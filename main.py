@@ -86,7 +86,7 @@ app = FastAPI(title=APP_TITLE, version=APP_VERSION)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For PoC, allowing all origins. Could be ["http://localhost:5173"]
+    allow_origins=["https://medical-transcription-rag.vercel.app/","http://localhost:5173"],  # For PoC, allowing all origins. Could be ["http://localhost:5173"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

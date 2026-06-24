@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Mic, Square, Play, Pause, Save, Loader2, AlertCircle, CheckCircle2, RotateCcw, FileText, Tag, ClipboardList } from 'lucide-react';
+import { Mic, Square, Play, Pause, Save, Loader2, AlertCircle, CheckCircle2, RotateCcw, FileText, Tag, ClipboardList, Upload, Stethoscope, Activity } from 'lucide-react';
 import './index.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+const ACCEPTED_AUDIO_TYPES = '.wav,.mp3,.m4a,.flac,.aac,.ogg,.wma,.webm';
 
 const audioBufferToWavBlob = (audioBuffer) => {
   const channelCount = audioBuffer.numberOfChannels;
@@ -64,30 +66,31 @@ const convertRecordingToWav = async (recordingBlob) => {
 };
 
 const ENTITY_LABELS = {
-  medications: { label: 'Medications', color: '#3b82f6' },
-  conditions: { label: 'Conditions', color: '#ef4444' },
-  symptoms: { label: 'Symptoms', color: '#f59e0b' },
-  procedures: { label: 'Procedures', color: '#8b5cf6' },
-  vitals: { label: 'Vitals', color: '#10b981' },
-  anatomy: { label: 'Anatomy', color: '#ec4899' },
-  findings: { label: 'Findings', color: '#6366f1' },
-  demographics: { label: 'Demographics', color: '#14b8a6' },
-  history: { label: 'History', color: '#f97316' },
-  temporal: { label: 'Temporal', color: '#64748b' },
-  dosages: { label: 'Dosages', color: '#06b6d4' },
+  medications: { label: 'Medications', color: '#3b82f6', icon: '💊' },
+  conditions: { label: 'Conditions', color: '#ef4444', icon: '🔴' },
+  symptoms: { label: 'Symptoms', color: '#f59e0b', icon: '⚡' },
+  procedures: { label: 'Procedures', color: '#8b5cf6', icon: '🔬' },
+  vitals: { label: 'Vitals', color: '#10b981', icon: '📊' },
+  anatomy: { label: 'Anatomy', color: '#ec4899', icon: '🫀' },
+  findings: { label: 'Findings', color: '#6366f1', icon: '🔍' },
+  demographics: { label: 'Demographics', color: '#14b8a6', icon: '👤' },
+  history: { label: 'History', color: '#f97316', icon: '📋' },
+  temporal: { label: 'Temporal', color: '#64748b', icon: '🕐' },
+  dosages: { label: 'Dosages', color: '#06b6d4', icon: '💉' },
 };
 
 const EntityBadge = ({ text, color }) => (
   <span style={{
     display: 'inline-block',
-    padding: '0.25rem 0.6rem',
+    padding: '0.3rem 0.75rem',
     borderRadius: '999px',
     fontSize: '0.8rem',
     fontWeight: '500',
-    background: `${color}20`,
+    background: `${color}15`,
     color: color,
-    border: `1px solid ${color}40`,
+    border: `1px solid ${color}30`,
     margin: '0.2rem',
+    transition: 'all 0.2s',
   }}>
     {text}
   </span>
@@ -95,20 +98,26 @@ const EntityBadge = ({ text, color }) => (
 
 const EntitiesPanel = ({ entities }) => {
   if (!entities || Object.keys(entities).length === 0) {
-    return <p style={{ color: 'var(--text-secondary)' }}>No medical entities extracted yet.</p>;
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+        <Tag size={48} color="var(--text-secondary)" style={{ opacity: 0.3, marginBottom: '1rem' }} />
+        <p style={{ color: 'var(--text-secondary)' }}>No medical entities extracted yet.</p>
+      </div>
+    );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
       {Object.entries(entities).map(([category, items]) => {
-        const config = ENTITY_LABELS[category] || { label: category, color: '#64748b' };
+        const config = ENTITY_LABELS[category] || { label: category, color: '#64748b', icon: '📌' };
         if (!items || items.length === 0) return null;
         return (
-          <div key={category}>
-            <h4 style={{ fontSize: '0.85rem', fontWeight: '600', color: config.color, marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {config.label}
+          <div key={category} style={{ background: 'var(--bg-secondary)', borderRadius: '12px', padding: '1rem 1.2rem' }}>
+            <h4 style={{ fontSize: '0.8rem', fontWeight: '600', color: config.color, marginBottom: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>{config.icon}</span> {config.label}
+              <span style={{ background: `${config.color}20`, color: config.color, padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', marginLeft: '0.3rem' }}>{items.length}</span>
             </h4>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.15rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.2rem' }}>
               {items.map((item, idx) => (
                 <EntityBadge key={idx} text={item} color={config.color} />
               ))}
@@ -120,12 +129,15 @@ const EntitiesPanel = ({ entities }) => {
   );
 };
 
-const SOAPSection = ({ title, content, color }) => (
-  <div style={{ marginBottom: '1.2rem' }}>
-    <h4 style={{ fontSize: '0.9rem', fontWeight: '700', color: color, marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {title}
-    </h4>
-    <div style={{ padding: '0.8rem 1rem', background: 'var(--glass)', borderRadius: '8px', borderLeft: `3px solid ${color}`, whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem' }}>
+const SOAPSection = ({ title, letter, content, color }) => (
+  <div style={{ marginBottom: '1rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>
+      <span style={{ width: '28px', height: '28px', borderRadius: '8px', background: `${color}20`, color: color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.85rem' }}>
+        {letter}
+      </span>
+      <h4 style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-primary)' }}>{title}</h4>
+    </div>
+    <div style={{ padding: '1rem 1.2rem', background: 'var(--bg-secondary)', borderRadius: '10px', borderLeft: `3px solid ${color}`, whiteSpace: 'pre-wrap', lineHeight: '1.7', fontSize: '0.9rem', color: 'var(--text-primary)' }}>
       {content || 'Not documented.'}
     </div>
   </div>
@@ -144,7 +156,7 @@ const SOAPPanel = ({ soapNote, isLoading, onGenerate }) => {
   if (!soapNote) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem 0' }}>
-        <ClipboardList size={48} color="var(--text-secondary)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+        <ClipboardList size={48} color="var(--text-secondary)" style={{ opacity: 0.3, marginBottom: '1rem' }} />
         <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Generate a structured clinical SOAP note from the transcript.</p>
         <button className="btn btn-primary" onClick={onGenerate}>
           <ClipboardList size={18} /> Generate SOAP Note
@@ -155,10 +167,10 @@ const SOAPPanel = ({ soapNote, isLoading, onGenerate }) => {
 
   return (
     <div className="fade-in">
-      <SOAPSection title="Subjective" content={soapNote.subjective} color="#3b82f6" />
-      <SOAPSection title="Objective" content={soapNote.objective} color="#10b981" />
-      <SOAPSection title="Assessment" content={soapNote.assessment} color="#f59e0b" />
-      <SOAPSection title="Plan" content={soapNote.plan} color="#8b5cf6" />
+      <SOAPSection title="Subjective" letter="S" content={soapNote.subjective} color="#3b82f6" />
+      <SOAPSection title="Objective" letter="O" content={soapNote.objective} color="#10b981" />
+      <SOAPSection title="Assessment" letter="A" content={soapNote.assessment} color="#f59e0b" />
+      <SOAPSection title="Plan" letter="P" content={soapNote.plan} color="#8b5cf6" />
     </div>
   );
 };
@@ -175,10 +187,13 @@ const App = () => {
   const [entities, setEntities] = useState(null);
   const [soapNote, setSoapNote] = useState(null);
   const [isGeneratingSoap, setIsGeneratingSoap] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const timerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (appState === 'recording' && !isPaused) {
@@ -212,7 +227,7 @@ const App = () => {
         try {
           const wavBlob = await convertRecordingToWav(rawBlob);
           setRecordingBlob(wavBlob);
-          processAudio(wavBlob);
+          processAudio(wavBlob, 'recording.wav');
         } catch (err) {
           setError(err.message || 'Failed to prepare recording for upload.');
           setAppState('idle');
@@ -252,10 +267,40 @@ const App = () => {
     }
   };
 
-  const processAudio = async (blob) => {
+  const handleFileUpload = (file) => {
+    if (!file) return;
+    setUploadedFileName(file.name);
+    setError(null);
+    processAudio(file, file.name);
+  };
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleFileUpload(file);
+    e.target.value = '';
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileUpload(file);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const processAudio = async (blob, filename) => {
     setAppState('processing');
     const formData = new FormData();
-    formData.append('file', blob, 'recording.wav');
+    formData.append('file', blob, filename || 'audio.wav');
 
     try {
       const response = await axios.post(`${API_BASE_URL}/process-audio`, formData, {
@@ -269,7 +314,7 @@ const App = () => {
       setAppState('result');
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(detail ? `Failed to process audio: ${detail}` : 'Failed to process audio. Please try again.');
+      setError(detail ? `Processing failed: ${detail}` : 'Failed to process audio. Please try again.');
       setAppState('idle');
       console.error(err);
     }
@@ -300,7 +345,7 @@ const App = () => {
       setTimeout(() => setAppState('result'), 3000);
     } catch (err) {
       const detail = err.response?.data?.detail;
-      setError(detail ? `Failed to save transcript: ${detail}` : 'Failed to save transcript. Please try again.');
+      setError(detail ? `Failed to save: ${detail}` : 'Failed to save transcript.');
       console.error(err);
     } finally {
       setIsSaving(false);
@@ -331,69 +376,128 @@ const App = () => {
     setEntities(null);
     setSoapNote(null);
     setActiveTab('transcript');
+    setUploadedFileName(null);
   };
 
-  const TabButton = ({ id, label, icon: Icon }) => (
+  const TabButton = ({ id, label, icon: Icon, count }) => (
     <button
       onClick={() => setActiveTab(id)}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '0.4rem',
-        padding: '0.6rem 1.2rem',
+        padding: '0.7rem 1.2rem',
         border: 'none',
         borderBottom: activeTab === id ? '2px solid var(--accent-primary)' : '2px solid transparent',
-        background: 'none',
+        background: activeTab === id ? 'rgba(6, 182, 212, 0.05)' : 'none',
         color: activeTab === id ? 'var(--accent-primary)' : 'var(--text-secondary)',
         fontWeight: activeTab === id ? '600' : '400',
         cursor: 'pointer',
         fontSize: '0.9rem',
         transition: 'all 0.2s',
+        borderRadius: '8px 8px 0 0',
       }}
     >
       <Icon size={16} />
       {label}
+      {count > 0 && (
+        <span style={{ background: 'var(--accent-primary)', color: '#000', padding: '0.05rem 0.4rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: '700' }}>{count}</span>
+      )}
     </button>
   );
 
+  const entityCount = entities ? Object.values(entities).reduce((sum, arr) => sum + (arr?.length || 0), 0) : 0;
+
   return (
     <div className="container fade-in">
-      <header>
-        <h1>MedScribe PoC</h1>
-        <p className="subtitle">Intelligent Medical Transcription & Analysis</p>
+      <header style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <Stethoscope size={36} color="var(--accent-primary)" />
+          <h1>MedScribe</h1>
+        </div>
+        <p className="subtitle">Clinical Transcription &middot; Medical NER &middot; SOAP Notes &middot; RAG</p>
       </header>
 
       <main className="glass-card">
         {error && (
-          <div className="error-banner" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--error)', marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: '12px' }}>
-            <AlertCircle size={20} />
-            <span>{error}</span>
-            <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--error)', marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.08)', padding: '0.9rem 1.2rem', borderRadius: '12px', border: '1px solid rgba(239, 68, 68, 0.15)' }}>
+            <AlertCircle size={18} />
+            <span style={{ flex: 1, fontSize: '0.9rem' }}>{error}</span>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: '0.2rem' }}>✕</button>
           </div>
         )}
 
         {appState === 'idle' && (
-          <div style={{ textAlign: 'center', padding: '4rem 0' }}>
-            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
-              <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--glass)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Mic size={40} color="var(--accent-primary)" />
+          <div style={{ padding: '2rem 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', maxWidth: '600px', margin: '0 auto' }}>
+              {/* Record Card */}
+              <div
+                style={{
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '16px',
+                  padding: '2rem 1.5rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: '1px solid var(--glass-border)',
+                  transition: 'all 0.3s',
+                }}
+                onClick={startRecording}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'none'; }}
+              >
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(6, 182, 212, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                  <Mic size={28} color="var(--accent-primary)" />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.4rem' }}>Record Audio</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Use your microphone to record a consultation</p>
+              </div>
+
+              {/* Upload Card */}
+              <div
+                style={{
+                  background: isDragOver ? 'rgba(6, 182, 212, 0.05)' : 'var(--bg-secondary)',
+                  borderRadius: '16px',
+                  padding: '2rem 1.5rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  border: isDragOver ? '2px dashed var(--accent-primary)' : '1px solid var(--glass-border)',
+                  transition: 'all 0.3s',
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onMouseEnter={(e) => { if (!isDragOver) { e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}}
+                onMouseLeave={(e) => { if (!isDragOver) { e.currentTarget.style.borderColor = 'var(--glass-border)'; e.currentTarget.style.transform = 'none'; }}}
+              >
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                  <Upload size={28} color="#8b5cf6" />
+                </div>
+                <h3 style={{ fontSize: '1.1rem', marginBottom: '0.4rem' }}>Upload Audio</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Drag & drop or click to upload a file</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept={ACCEPTED_AUDIO_TYPES}
+                  onChange={handleFileInputChange}
+                  style={{ display: 'none' }}
+                />
               </div>
             </div>
-            <h2 style={{ marginBottom: '1rem' }}>Ready to Record</h2>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Start your consultation. We'll handle the transcription and analysis.</p>
-            <button className="btn btn-primary" onClick={startRecording}>
-              <Mic size={20} /> Start Recording
-            </button>
+
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '1.5rem' }}>
+              Supported: WAV, MP3, M4A, FLAC, AAC, OGG, WebM
+            </p>
           </div>
         )}
 
         {appState === 'recording' && (
-          <div style={{ textAlign: 'center', padding: '4rem 0' }}>
-            <div style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+            <div style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.8rem' }}>
               <div className="pulse" />
-              <span style={{ fontSize: '3rem', fontWeight: '700', fontFamily: 'monospace' }}>{formatTime(timer)}</span>
-              <span style={{ color: 'var(--accent-primary)', fontWeight: '600', letterSpacing: '0.1em' }}>
-                {isPaused ? 'RECORDING PAUSED' : 'RECORDING LIVE'}
+              <span style={{ fontSize: '3rem', fontWeight: '700', fontFamily: 'monospace', letterSpacing: '0.05em' }}>{formatTime(timer)}</span>
+              <span style={{ color: isPaused ? 'var(--text-secondary)' : 'var(--error)', fontWeight: '600', letterSpacing: '0.1em', fontSize: '0.85rem' }}>
+                {isPaused ? 'PAUSED' : 'RECORDING'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
@@ -415,9 +519,20 @@ const App = () => {
 
         {appState === 'processing' && (
           <div style={{ textAlign: 'center', padding: '4rem 0' }}>
-            <div className="loader" style={{ marginBottom: '2rem' }} />
-            <h2>Processing Consultation</h2>
-            <p style={{ color: 'var(--text-secondary)' }}>Transcribing audio, extracting medical entities, and generating summary...</p>
+            <div className="loader" style={{ marginBottom: '1.5rem' }} />
+            <h2 style={{ marginBottom: '0.5rem' }}>Processing{uploadedFileName ? ` "${uploadedFileName}"` : ' Consultation'}</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Transcribing audio, extracting medical entities, generating summary...</p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem', marginTop: '2rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                <Activity size={14} /> Whisper STT
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                <Tag size={14} /> Medical NER
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                <Stethoscope size={14} /> RAG Analysis
+              </div>
+            </div>
           </div>
         )}
 
@@ -425,17 +540,17 @@ const App = () => {
           <div className="editor-container fade-in">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <CheckCircle2 color="var(--success)" size={24} />
-                <h3 style={{ fontSize: '1.5rem' }}>Consultation Analysis</h3>
+                <CheckCircle2 color="var(--success)" size={22} />
+                <h3 style={{ fontSize: '1.3rem' }}>Consultation Analysis</h3>
               </div>
-              <button className="btn btn-secondary" onClick={reset}>
-                <RotateCcw size={18} /> New Recording
+              <button className="btn btn-secondary" onClick={reset} style={{ fontSize: '0.85rem', padding: '0.6rem 1rem' }}>
+                <RotateCcw size={16} /> New
               </button>
             </div>
 
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass)', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', marginBottom: '1.5rem', gap: '0.25rem' }}>
               <TabButton id="transcript" label="Transcript" icon={FileText} />
-              <TabButton id="entities" label="Entities" icon={Tag} />
+              <TabButton id="entities" label="Entities" icon={Tag} count={entityCount} />
               <TabButton id="soap" label="SOAP Note" icon={ClipboardList} />
             </div>
 
@@ -449,8 +564,8 @@ const App = () => {
                 />
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
                   {appState === 'saved' && (
-                    <span className="fade-in" style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '600' }}>
-                      <CheckCircle2 size={18} /> Saved successfully
+                    <span className="fade-in" style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontWeight: '600', fontSize: '0.9rem' }}>
+                      <CheckCircle2 size={16} /> Saved
                     </span>
                   )}
                   <button
@@ -458,7 +573,7 @@ const App = () => {
                     onClick={handleSave}
                     disabled={appState === 'saved' || isSaving || !transcript.trim()}
                   >
-                    {isSaving ? <Loader2 className="spin" size={20} /> : <Save size={20} />}
+                    {isSaving ? <Loader2 className="spin" size={18} /> : <Save size={18} />}
                     {isSaving ? 'Saving...' : 'Confirm & Save'}
                   </button>
                 </div>
@@ -484,8 +599,8 @@ const App = () => {
         )}
       </main>
 
-      <footer style={{ marginTop: 'auto', padding: '2rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-        &copy; 2026 MedScribe AI. Professional Proof of Concept.
+      <footer style={{ marginTop: 'auto', padding: '1.5rem 0', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+        MedScribe &middot; Clinical Documentation Intelligence
       </footer>
     </div>
   );

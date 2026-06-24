@@ -1,3 +1,12 @@
+---
+title: MedScribe
+emoji: 🏥
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # Medical Transcription RAG
 
 This project is a proof-of-concept medical transcription and retrieval app. It records consultation audio in the browser, sends it to a FastAPI backend, transcribes the audio locally with Whisper, stores the transcript in a FAISS vector index, and uses a Groq-hosted LLM to answer or summarize from the indexed transcript.

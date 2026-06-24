@@ -1,0 +1,30 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.DS_Store
+node_modules/
+# Virtual environments
+venv/
+.venv/
+.env
+.venv/
+
+# Large audio files
+audio/Clinical Case recordings/
+*.mp3
+
+# Generated files
+faiss_transcript_store/
+audio/edited_transcript.txt
+audio/transcript_chunks.jsonl
+audio/medical_entities.json
+
+# Lock files
+uv.lock
+
+# Frontend build
+frontend/dist/

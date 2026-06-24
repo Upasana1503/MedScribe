@@ -1,0 +1,16 @@
+torch
+librosa
+transformers
+accelerate
+soundfile
+
+langchain
+langchain-core
+langchain-text-splitters
+sentence-transformers
+faiss-cpu
+langchain-groq
+python-dotenv
+fastapi
+uvicorn
+python-multipart

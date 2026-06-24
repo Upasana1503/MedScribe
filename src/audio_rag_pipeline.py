@@ -159,7 +159,7 @@ def save_transcriptions_jsonl(chunks: List[AudioChunk], output_path: str) -> Non
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
     with open(output_path, "w", encoding="utf-8") as file_obj:
         for chunk in chunks:
-            file_obj.write(json.dumps(chunk.__dict__, ensure_ascii=True) + "\n")
+            file_obj.write(json.dumps(chunk.__dict__, ensure_ascii=False) + "\n")
     print(f"[INFO] Saved transcript chunks to {output_path}")
 
 

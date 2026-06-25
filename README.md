@@ -1,358 +1,173 @@
 ---
 title: MedScribe
-emoji: 🏥
 colorFrom: blue
 colorTo: green
 sdk: docker
 pinned: false
 ---
 
-# Medical Transcription RAG
+# MedScribe — Clinical Documentation Intelligence
 
-This project is a proof-of-concept medical transcription and retrieval app. It records consultation audio in the browser, sends it to a FastAPI backend, transcribes the audio locally with Whisper, stores the transcript in a FAISS vector index, and uses a Groq-hosted LLM to answer or summarize from the indexed transcript.
+An end-to-end clinical documentation system that transcribes doctor-patient consultations, extracts medical entities, generates structured SOAP notes, and provides entity-aware retrieval-augmented generation (RAG) for querying patient records.
 
-The frontend also lets you edit the generated transcription after processing. When you click `Confirm & Save`, the corrected transcript is saved and the FAISS index is rebuilt from the edited text, so later RAG queries use the corrected version.
+## What It Does
 
-## Features
+1. **Record or upload** consultation audio in the browser.
+2. **Transcribe** using Whisper (openai/whisper-medium) on CPU.
+3. **Extract medical entities** — medications, conditions, symptoms, procedures, vitals, dosages — using a biomedical NER model (d4data/biomedical-ner-all).
+4. **Generate SOAP notes** — structured Subjective/Objective/Assessment/Plan from the transcript and extracted entities.
+5. **Query the transcript** — ask clinical questions with entity-aware RAG retrieval, powered by Groq (llama-3.3-70b-versatile).
+6. **Edit and save** — correct transcription errors; the FAISS index and entities rebuild automatically.
 
-1. Browser-based audio recording with a React + Vite frontend.
-2. Audio upload to a FastAPI backend.
-3. Local Whisper transcription on CPU.
-4. Transcript chunking and FAISS vector indexing.
-5. RAG response generation with Groq.
-6. Editable transcription review screen.
-7. Save endpoint for corrected transcripts.
-8. CLI tools for ingesting audio, asking questions, and evaluating RAG quality.
+## Architecture
+
+```text
+Audio (mic/upload)
+  → Whisper STT (openai/whisper-medium)
+  → Chunking (30s windows, 2s overlap)
+  → FAISS vector index (cosine similarity, BAAI/bge-small-en-v1.5)
+  → Medical NER (d4data/biomedical-ner-all)
+  → Entity-aware hybrid retrieval (55% semantic + 20% lexical + 20% entity boost + 5% rank)
+  → LLM answer generation (Groq llama-3.3-70b-versatile)
+  → SOAP note generation (LLM + extracted entities)
+```
+
+## Live Demo
+
+- **Frontend:** Deployed on Vercel
+- **Backend API:** Deployed on HuggingFace Spaces (Docker)
 
 ## Project Structure
 
 ```text
 .
-├── main.py                     # FastAPI backend used by the frontend
+├── main.py                     # FastAPI backend (API server)
 ├── app.py                      # CLI interactive RAG mode
-├── audio_rag.py                # CLI ingest, ask, and evaluate commands
+├── audio_rag.py                # CLI: ingest, ask, evaluate commands
+├── Dockerfile                  # HuggingFace Spaces deployment
 ├── src/
-│   ├── audio_rag_pipeline.py   # Audio chunking, transcription, FAISS build, RAG logic
-│   ├── vectorstore.py          # FAISS vector store wrapper
-│   └── rag_metrics.py          # Evaluation metrics
+│   ├── audio_rag_pipeline.py   # Core pipeline: chunking, transcription, FAISS, RAG, entity-aware retrieval
+│   ├── vectorstore.py          # FAISS vector store (cosine similarity via IndexFlatIP)
+│   ├── medical_ner.py          # Medical NER using d4data/biomedical-ner-all
+│   ├── soap_generator.py       # SOAP note generation from transcript + entities
+│   └── rag_metrics.py          # Evaluation: faithfulness, recall@K, semantic similarity
 ├── stt_whisper/
-│   └── inference.py            # Whisper model loading and transcription helpers
+│   └── inference.py            # Whisper model loading and transcription
 ├── frontend/
-│   ├── src/App.jsx             # React app
-│   └── package.json            # Frontend scripts and dependencies
-├── audio/
-│   ├── transcript_chunks.jsonl # Saved transcript chunks
-│   └── edited_transcript.txt   # Saved corrected transcript
-└── faiss_transcript_store/     # Saved FAISS index and metadata
+│   ├── src/App.jsx             # React app (record, upload, transcript, entities, SOAP, query)
+│   └── package.json            # Frontend dependencies
+└── audio/                      # Runtime data (transcripts, entities, audio files)
 ```
 
-## Requirements
+## Tech Stack
 
-- Python 3.12
-- Node.js and npm
-- A Groq API key for RAG answer generation
-- Internet access on first model setup, unless the required Hugging Face models are already cached locally
+### Backend
+- **FastAPI** + Uvicorn
+- **Whisper** (openai/whisper-medium) — speech-to-text
+- **BAAI/bge-small-en-v1.5** — text embeddings
+- **FAISS** (IndexFlatIP, cosine similarity) — vector search
+- **d4data/biomedical-ner-all** — medical named entity recognition
+- **LangChain + Groq** (llama-3.3-70b-versatile) — LLM for RAG and SOAP generation
+- **librosa / soundfile** — audio processing
 
-The backend uses:
+### Frontend
+- **React** + Vite
+- **Axios** — API calls
+- **Lucide React** — icons
 
-- FastAPI
-- Uvicorn
-- Transformers Whisper
-- Sentence Transformers
-- FAISS
-- LangChain Groq
+## API Endpoints
 
-The frontend uses:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Server status, index availability |
+| `POST` | `/process-audio` | Upload audio → transcribe, index, extract entities, generate summary |
+| `POST` | `/save-transcript` | Save edited transcript, rebuild index and entities |
+| `POST` | `/query` | Ask a question over the indexed transcript |
+| `GET` | `/entities` | Get extracted medical entities |
+| `POST` | `/soap-note` | Generate SOAP note from transcript + entities |
+| `POST` | `/transcribe` | Transcribe audio without indexing |
 
-- React
-- Vite
-- Axios
-- Lucide React
+## Local Development
 
-## Environment Variables
-
-Set your Groq key before starting the backend:
-
-```bash
-export GROQ_API_KEY="your_groq_api_key_here"
-```
-
-Whisper is configured to use local Hugging Face files by default:
-
-```bash
-HF_LOCAL_FILES_ONLY=1
-```
-
-If this is your first run and the Whisper model is not already cached, start the backend with downloads enabled:
-
-```bash
-export HF_LOCAL_FILES_ONLY=0
-```
-
-After the model has downloaded, you can switch back to local-only mode if you want.
-
-## How to Run the Full App
-
-Open two terminals from the project root:
-
-```bash
-cd /Users/sahukaraprakash/Downloads/MEDICAL_TRANSCRIPTION_RAG-frontendretry
-```
-
-### 1. Start the Backend
-
-If the existing `venv` folder is available:
-
-```bash
-source venv/bin/activate
-export GROQ_API_KEY="your_groq_api_key_here"
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
-```
-
-If you need to create a fresh virtual environment:
+### Backend
 
 ```bash
 python3.12 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-export GROQ_API_KEY="your_groq_api_key_here"
+export GROQ_API_KEY="your_groq_api_key"
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Backend URL:
-
-```text
-http://localhost:8000
-```
-
-Health check:
-
-```text
-http://localhost:8000/health
-```
-
-### 2. Start the Frontend
-
-In a second terminal:
+### Frontend
 
 ```bash
-cd /Users/sahukaraprakash/Downloads/MEDICAL_TRANSCRIPTION_RAG-frontendretry/frontend
+cd frontend
 npm install
 npm run dev
 ```
 
-Frontend URL:
+Frontend at `http://localhost:5173`, backend at `http://localhost:8000`.
 
-```text
-http://localhost:5173
-```
+## Deployment
 
-## Frontend Workflow
+### Backend — HuggingFace Spaces (Free)
 
-1. Open `http://localhost:5173`.
-2. Click `Start Recording`.
-3. Allow microphone access in the browser.
-4. Speak the consultation audio.
-5. Click `Stop & Process`.
-6. Wait for transcription and RAG processing.
-7. Review the transcription in the text editor.
-8. Type any corrections for mispronounced or misprocessed words.
-9. Click `Confirm & Save`.
+The Dockerfile pre-downloads all ML models at build time (Whisper, embeddings, NER). No runtime downloads.
 
-The saved edited transcript is written to:
+1. Create a HuggingFace Space (Docker SDK, CPU basic).
+2. Push code to the Space.
+3. Set `GROQ_API_KEY` as a secret in Space settings.
 
-```text
-audio/edited_transcript.txt
-```
+### Frontend — Vercel (Free)
 
-The corrected transcript is also written into:
-
-```text
-audio/transcript_chunks.jsonl
-```
-
-The FAISS index is rebuilt in:
-
-```text
-faiss_transcript_store/
-```
-
-## Backend API
-
-### `GET /health`
-
-Checks whether the backend is running and whether a transcript index is available.
-
-Example response:
-
-```json
-{
-  "status": "ok",
-  "index_ready": true,
-  "rag_loaded": true
-}
-```
-
-### `POST /process-audio`
-
-Accepts an uploaded audio file, transcribes it, builds the FAISS index, and returns both transcript text and a RAG-generated response.
-
-Form data:
-
-- `file`: audio file
-- `question`: optional custom summary/question prompt
-
-### `POST /save-transcript`
-
-Saves the edited transcript and rebuilds the FAISS index from the corrected text.
-
-JSON body:
-
-```json
-{
-  "transcript": "Corrected transcript text here"
-}
-```
-
-### `POST /query`
-
-Asks a question over the saved transcript index.
-
-JSON body:
-
-```json
-{
-  "query": "What diagnosis was discussed?",
-  "top_k": 5
-}
-```
+1. Import the repo on Vercel with root directory set to `frontend`.
+2. Set `VITE_API_BASE_URL` to your HuggingFace Space URL.
 
 ## CLI Usage
 
-The project can also be used without the frontend.
-
-### Ingest Audio and Build FAISS Index
+### Ingest Audio
 
 ```bash
 python audio_rag.py ingest \
-  --audio-path /absolute/path/to/consultation.wav \
-  --persist-dir faiss_transcript_store \
-  --transcript-path audio/transcript_chunks.jsonl \
-  --chunk-seconds 30 \
-  --overlap-seconds 2 \
-  --language en
+  --audio-path /path/to/consultation.wav \
+  --persist-dir faiss_transcript_store
 ```
 
-### Ask Questions Over the Indexed Transcript
+### Ask Questions
 
 ```bash
 python audio_rag.py ask \
   --question "What were the patient's symptoms?" \
-  --persist-dir faiss_transcript_store \
-  --top-k 5
+  --persist-dir faiss_transcript_store
 ```
-
-### Interactive CLI Mode
-
-```bash
-python app.py
-```
-
-You can optionally paste an audio file path to ingest, then ask questions in a loop. Type `exit` to quit.
 
 ### Evaluate RAG Quality
-
-Create a JSONL eval file:
-
-```json
-{"question":"What is the main complaint?","reference_answer":"The patient reports chest pain and shortness of breath.","relevant_chunk_ids":[0,1]}
-{"question":"What treatment was advised?","reference_answer":"The patient was advised medication and follow-up.","relevant_chunk_ids":[2,3]}
-```
-
-Run evaluation:
 
 ```bash
 python audio_rag.py evaluate \
   --eval-file audio/eval_cases.jsonl \
   --persist-dir faiss_transcript_store \
-  --top-k 5 \
   --output-path audio/eval_results.json
 ```
 
-Implemented metrics:
+Metrics: Faithfulness, Retrieval Recall@K, Semantic Answer Similarity, Query-Answer Embedding Similarity.
 
-1. Faithfulness
-2. Retrieval Recall@K
-3. Semantic Answer Similarity
-4. Query-Answer Embedding Similarity
+## Key Engineering Decisions
 
-## Troubleshooting
+- **Cosine similarity over L2 distance** — embedding models are trained with cosine objective; L2 penalizes magnitude differences that don't reflect semantic distance.
+- **Entity-aware reranking** — when a query mentions a medical entity (drug, condition), chunks containing that entity get boosted. Prevents the common failure where vector similarity returns semantically close but factually wrong chunks.
+- **SOAP generation uses extracted entities** — NER output is passed alongside the transcript to the LLM, improving structured note accuracy.
+- **Grounded answers only** — RAG prompt strictly prevents the LLM from adding medical knowledge beyond what's in the transcript. No hallucinated medical advice.
+- **Metadata stored as JSON** — replaced pickle serialization with JSON for security (pickle allows arbitrary code execution on untrusted data).
 
-### Frontend says processing failed
+## Models Used
 
-Check that the backend is running:
+| Component | Model | Size | Purpose |
+|-----------|-------|------|---------|
+| Speech-to-Text | openai/whisper-medium | ~1.5GB | Transcription |
+| Embeddings | BAAI/bge-small-en-v1.5 | ~130MB | Vector search |
+| Medical NER | d4data/biomedical-ner-all | ~440MB | Entity extraction |
+| LLM | llama-3.3-70b-versatile (Groq) | API | Answer generation, SOAP notes |
 
-```text
-http://localhost:8000/health
-```
-
-Also check the backend terminal for the real error message.
-
-### `GROQ_API_KEY` error
-
-Set the key before running the backend:
-
-```bash
-export GROQ_API_KEY="your_groq_api_key_here"
-```
-
-Then restart Uvicorn.
-
-### Whisper model fails to load
-
-If this is the first run, allow Hugging Face downloads:
-
-```bash
-export HF_LOCAL_FILES_ONLY=0
-```
-
-Then restart the backend.
-
-### Frontend cannot reach backend
-
-The frontend defaults to:
-
-```text
-http://localhost:8000
-```
-
-If your backend runs somewhere else, create `frontend/.env`:
-
-```bash
-VITE_API_BASE_URL=http://localhost:8000
-```
-
-Restart the Vite dev server after changing `.env`.
-
-### Browser microphone does not work
-
-Use a modern browser and allow microphone permissions. Browser microphone APIs usually require `localhost` or HTTPS, so use:
-
-```text
-http://localhost:5173
-```
-
-## Build Check
-
-To verify the frontend compiles:
-
-```bash
-cd frontend
-npm run build
-```
-
-To verify the backend imports:
-
-```bash
-venv/bin/python -c "import main; print('main import ok')"
-```
+All models are free and open-source. LLM runs via Groq free tier.

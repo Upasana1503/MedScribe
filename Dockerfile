@@ -20,6 +20,11 @@ RUN python -c "from transformers import WhisperProcessor, WhisperForConditionalG
 RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
 RUN python -c "from transformers import pipeline; pipeline('ner', model='d4data/biomedical-ner-all', aggregation_strategy='simple')"
 
+# Set UTF-8 locale to prevent ASCII encoding errors
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV PYTHONIOENCODING=utf-8
+
 # Copy your app code into the container
 COPY . .
 

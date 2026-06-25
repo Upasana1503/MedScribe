@@ -236,7 +236,10 @@ async def process_audio(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Audio processing failed: {exc}") from exc
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio processing failed: {str(exc).encode('utf-8', errors='replace').decode('utf-8')}",
+        ) from exc
     finally:
         _safe_remove(temp_path)
 

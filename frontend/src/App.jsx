@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Mic, Square, Play, Pause, Save, Loader2, AlertCircle, CheckCircle2, RotateCcw, FileText, Tag, ClipboardList, Upload, Stethoscope, Activity } from 'lucide-react';
+import { Mic, Square, Play, Pause, Save, Loader2, AlertCircle, CheckCircle2, RotateCcw, FileText, Tag, ClipboardList, Upload, Stethoscope, Activity, MessageCircle, Send } from 'lucide-react';
 import './index.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -171,6 +171,100 @@ const SOAPPanel = ({ soapNote, isLoading, onGenerate }) => {
       <SOAPSection title="Objective" letter="O" content={soapNote.objective} color="#10b981" />
       <SOAPSection title="Assessment" letter="A" content={soapNote.assessment} color="#f59e0b" />
       <SOAPSection title="Plan" letter="P" content={soapNote.plan} color="#8b5cf6" />
+    </div>
+  );
+};
+
+const QueryPanel = ({ apiBase }) => {
+  const [query, setQuery] = useState('');
+  const [messages, setMessages] = useState([]);
+  const [isQuerying, setIsQuerying] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (!q || isQuerying) return;
+
+    setMessages((prev) => [...prev, { role: 'user', text: q }]);
+    setQuery('');
+    setIsQuerying(true);
+
+    try {
+      const response = await axios.post(`${apiBase}/query`, { query: q, top_k: 5 });
+      setMessages((prev) => [...prev, { role: 'assistant', text: response.data.answer }]);
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setMessages((prev) => [...prev, { role: 'error', text: detail || 'Failed to get answer.' }]);
+    } finally {
+      setIsQuerying(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '400px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0.5rem 0', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-secondary)' }}>
+            <MessageCircle size={48} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+            <p>Ask questions about the patient's consultation.</p>
+            <p style={{ fontSize: '0.8rem', marginTop: '0.5rem', opacity: 0.7 }}>e.g. "What symptoms were reported?" or "What medications were prescribed?"</p>
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div key={idx} style={{
+            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            maxWidth: '80%',
+            padding: '0.8rem 1rem',
+            borderRadius: msg.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+            background: msg.role === 'user' ? 'var(--accent-primary)' : msg.role === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-secondary)',
+            color: msg.role === 'user' ? '#000' : msg.role === 'error' ? 'var(--error)' : 'var(--text-primary)',
+            fontSize: '0.9rem',
+            lineHeight: '1.6',
+            whiteSpace: 'pre-wrap',
+          }}>
+            {msg.text}
+          </div>
+        ))}
+        {isQuerying && (
+          <div style={{ alignSelf: 'flex-start', padding: '0.8rem 1rem', background: 'var(--bg-secondary)', borderRadius: '12px 12px 12px 2px' }}>
+            <Loader2 className="spin" size={16} color="var(--accent-primary)" />
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.8rem', borderTop: '1px solid var(--glass-border)', paddingTop: '0.8rem' }}>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Ask about the patient..."
+          disabled={isQuerying}
+          style={{
+            flex: 1,
+            padding: '0.7rem 1rem',
+            borderRadius: '10px',
+            border: '1px solid var(--glass-border)',
+            background: 'var(--bg-secondary)',
+            color: 'var(--text-primary)',
+            fontSize: '0.9rem',
+            fontFamily: 'inherit',
+            outline: 'none',
+          }}
+        />
+        <button
+          type="submit"
+          className="btn btn-primary"
+          disabled={isQuerying || !query.trim()}
+          style={{ padding: '0.7rem 1rem' }}
+        >
+          <Send size={18} />
+        </button>
+      </form>
     </div>
   );
 };
@@ -552,6 +646,7 @@ const App = () => {
               <TabButton id="transcript" label="Transcript" icon={FileText} />
               <TabButton id="entities" label="Entities" icon={Tag} count={entityCount} />
               <TabButton id="soap" label="SOAP Note" icon={ClipboardList} />
+              <TabButton id="query" label="Ask" icon={MessageCircle} />
             </div>
 
             {activeTab === 'transcript' && (
@@ -593,6 +688,12 @@ const App = () => {
                   isLoading={isGeneratingSoap}
                   onGenerate={handleGenerateSoap}
                 />
+              </div>
+            )}
+
+            {activeTab === 'query' && (
+              <div className="fade-in" style={{ minHeight: '300px' }}>
+                <QueryPanel apiBase={API_BASE_URL} />
               </div>
             )}
           </div>

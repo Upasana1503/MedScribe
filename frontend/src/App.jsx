@@ -692,11 +692,9 @@ const App = () => {
               </div>
             )}
 
-            {activeTab === 'query' && (
-              <div className="fade-in" style={{ minHeight: '300px' }}>
-                <QueryPanel apiBase={API_BASE_URL} messages={queryMessages} setMessages={setQueryMessages} />
-              </div>
-            )}
+            <div style={{ display: activeTab === 'query' ? 'block' : 'none', minHeight: '300px' }}>
+              <QueryPanel apiBase={API_BASE_URL} messages={queryMessages} setMessages={setQueryMessages} />
+            </div>
           </div>
         )}
       </main>

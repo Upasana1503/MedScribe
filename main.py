@@ -5,9 +5,13 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 import asyncio
+import logging
 import os
 import tempfile
+import traceback
 from contextlib import suppress
+
+logging.basicConfig(level=logging.INFO, force=True)
 from pathlib import Path
 from typing import Optional
 
@@ -240,9 +244,11 @@ async def process_audio(
     except HTTPException:
         raise
     except Exception as exc:
+        tb = traceback.format_exc()
+        logging.error(f"process-audio FULL TRACEBACK:\n{tb}")
         raise HTTPException(
             status_code=500,
-            detail=f"Audio processing failed: {str(exc).encode('utf-8', errors='replace').decode('utf-8')}",
+            detail=f"Audio processing failed: {repr(exc)}",
         ) from exc
     finally:
         _safe_remove(temp_path)

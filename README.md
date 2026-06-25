@@ -32,11 +32,6 @@ Audio (mic/upload)
   → SOAP note generation (LLM + extracted entities)
 ```
 
-## Live Demo
-
-- **Frontend:** Deployed on Vercel
-- **Backend API:** Deployed on HuggingFace Spaces (Docker)
-
 ## Project Structure
 
 ```text
@@ -77,15 +72,13 @@ Audio (mic/upload)
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Server status, index availability |
-| `POST` | `/process-audio` | Upload audio → transcribe, index, extract entities, generate summary |
-| `POST` | `/save-transcript` | Save edited transcript, rebuild index and entities |
-| `POST` | `/query` | Ask a question over the indexed transcript |
-| `GET` | `/entities` | Get extracted medical entities |
-| `POST` | `/soap-note` | Generate SOAP note from transcript + entities |
-| `POST` | `/transcribe` | Transcribe audio without indexing |
+- `GET /health` — Server status and index availability
+- `POST /process-audio` — Upload audio, transcribe, index, extract entities, generate summary
+- `POST /save-transcript` — Save edited transcript, rebuild index and entities
+- `POST /query` — Ask a question over the indexed transcript
+- `GET /entities` — Get extracted medical entities
+- `POST /soap-note` — Generate SOAP note from transcript and entities
+- `POST /transcribe` — Transcribe audio without indexing
 
 ## Local Development
 
@@ -163,11 +156,9 @@ Metrics: Faithfulness, Retrieval Recall@K, Semantic Answer Similarity, Query-Ans
 
 ## Models Used
 
-| Component | Model | Size | Purpose |
-|-----------|-------|------|---------|
-| Speech-to-Text | openai/whisper-medium | ~1.5GB | Transcription |
-| Embeddings | BAAI/bge-small-en-v1.5 | ~130MB | Vector search |
-| Medical NER | d4data/biomedical-ner-all | ~440MB | Entity extraction |
-| LLM | llama-3.3-70b-versatile (Groq) | API | Answer generation, SOAP notes |
+- **Speech-to-Text** — openai/whisper-medium (~1.5GB) for transcription
+- **Embeddings** — BAAI/bge-small-en-v1.5 (~130MB) for vector search
+- **Medical NER** — d4data/biomedical-ner-all (~440MB) for entity extraction
+- **LLM** — llama-3.3-70b-versatile via Groq API for answer generation and SOAP notes
 
 All models are free and open-source. LLM runs via Groq free tier.

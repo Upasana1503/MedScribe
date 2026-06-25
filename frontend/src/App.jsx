@@ -175,9 +175,8 @@ const SOAPPanel = ({ soapNote, isLoading, onGenerate }) => {
   );
 };
 
-const QueryPanel = ({ apiBase }) => {
+const QueryPanel = ({ apiBase, messages, setMessages }) => {
   const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState([]);
   const [isQuerying, setIsQuerying] = useState(false);
   const messagesEndRef = useRef(null);
 
@@ -283,6 +282,7 @@ const App = () => {
   const [isGeneratingSoap, setIsGeneratingSoap] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [queryMessages, setQueryMessages] = useState([]);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -471,6 +471,7 @@ const App = () => {
     setSoapNote(null);
     setActiveTab('transcript');
     setUploadedFileName(null);
+    setQueryMessages([]);
   };
 
   const TabButton = ({ id, label, icon: Icon, count }) => (
@@ -693,7 +694,7 @@ const App = () => {
 
             {activeTab === 'query' && (
               <div className="fade-in" style={{ minHeight: '300px' }}>
-                <QueryPanel apiBase={API_BASE_URL} />
+                <QueryPanel apiBase={API_BASE_URL} messages={queryMessages} setMessages={setQueryMessages} />
               </div>
             )}
           </div>

@@ -1,11 +1,3 @@
----
-title: MedScribe
-colorFrom: blue
-colorTo: green
-sdk: docker
-pinned: false
----
-
 # MedScribe — Clinical Documentation Intelligence
 
 An end-to-end clinical documentation system that transcribes doctor-patient consultations, extracts medical entities, generates structured SOAP notes, and provides entity-aware retrieval-augmented generation (RAG) for querying patient records.
